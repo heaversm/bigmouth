@@ -1,0 +1,66 @@
+:root {
+  --border-std: #eee;
+  --bg-btn: #008afc;
+  --ff-neo: Inter, Roboto, 'Helvetica Neue', 'Arial Nova', 'Nimbus Sans', Arial, sans-serif;
+  --fw-normal: 400;
+  --fc-gray: #666;
+}
+
+body, button, input, select, textarea {
+  font-family: var(--ff-neo);
+}
+
+h1,h2,h3,h4,h5,h6 {
+  font-weight: var(--fw-normal);
+}
+
+.btn-std {
+  border: 0;
+  background-color: var(--bg-btn);
+  border-radius: .5rem;
+  padding: .5rem 1rem;
+  cursor: pointer;
+  color: white;
+}
+
+.flex {
+  display: flex;
+}
+
+.w-100 {
+  width: 100%:
+}
+
+.space-between {
+  justify-content: space-between;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.controls-container button:not(:first-child) {
+  margin-left: 1rem;
+}
+
+.audio-transcript__container {
+  margin-top: 2rem;
+}
+
+.audio-transcript__heading {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.audio-transcript {
+  margin-top: .5rem;
+  border: 1px solid var(--border-std);
+  border-radius: .5rem;
+  padding: 1rem;
+  color: var(--fc-gray);
+}
+

@@ -25,13 +25,23 @@ const toggleTranscriptionPolling = (active = false) => {
   }
 };
 
+const clearJSClasses = () => {
+  document.body.className = "";
+};
+
 const toggleRecordingUI = (active = false) => {
-  document.body.classList.toggle("js-recording", active);
+  clearJSClasses();
+  // document.body.classList.toggle("js-recording", active);
   if (active) {
     document.querySelector(".audio-record-btn").innerText = "Pause";
   } else {
     document.querySelector(".audio-record-btn").innerText = "Record";
   }
+};
+
+const toggleResponseUI = (active = false) => {
+  clearJSClasses();
+  document.body.classList.toggle("js-responding", active);
 };
 
 const handleServerPauseRecord = () => {
@@ -48,18 +58,21 @@ const handleServerPauseRecord = () => {
     .catch((err) => console.log(err));
 };
 
-const handleServerStopRecord = () => {
-  fetch("/api/stopRecordVoice", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data);
+const handleServerStopRecord = async () => {
+  return new Promise((resolve, reject) => {
+    fetch("/api/stopRecordVoice", {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
-    .catch((err) => console.log(err));
+      .then((res) => {
+        resolve(res.json());
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
 };
 
 const handleServerRecord = () => {
@@ -91,6 +104,30 @@ const handleServerClearTranscription = () => {
     .catch((err) => console.log(err));
 };
 
+const writeAIResponse = (aiResponse) => {
+  document.querySelector(".audio-response").innerText = aiResponse;
+};
+
+const handleServerSubmitTranscription = () => {
+  fetch("/api/submitTranscription", {
+    method: "get",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data);
+      try {
+        const aiResponse = data.aiResponse;
+        writeAIResponse(aiResponse);
+      } catch (error) {
+        console.log(error);
+      }
+    })
+    .catch((err) => console.log(err));
+};
+
 const onRecordClick = () => {
   if (recordActive) {
     //if recording, stop
@@ -114,7 +151,10 @@ const onClearClick = () => {
 
 const onAudioSubmitClick = () => {
   toggleRecordingUI(false);
-  handleServerStopRecord();
+  toggleResponseUI(true);
+  handleServerStopRecord().then(() => {
+    handleServerSubmitTranscription();
+  });
 };
 
 const addEventListeners = () => {

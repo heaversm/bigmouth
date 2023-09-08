@@ -4,6 +4,12 @@ const path = require("path");
 const process = require("process");
 const recorder = require("node-record-lpcm16");
 const speech = require("@google-cloud/speech");
+const OpenAI = require("openai");
+require("dotenv").config();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const port = process.env.PORT || 3333;
 // const router = express.Router();
@@ -79,6 +85,22 @@ app.get("/api/clearTranscription", (req, res) => {
   console.log("api clear");
   streamScript = "";
   res.status(200).json({ message: "transcription cleared" });
+});
+
+app.get("/api/submitTranscription", async (req, res) => {
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: streamScript }],
+    model: "gpt-3.5-turbo",
+  });
+
+  // console.log(completion.choices);
+  try {
+    const aiResponse = completion.choices[0].message.content;
+    res.status(200).json({ message: "success", aiResponse: aiResponse });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: `error, ${error}` });
+  }
 });
 
 app.get("/api/pauseRecordVoice", (req, res) => {

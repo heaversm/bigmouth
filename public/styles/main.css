@@ -6,6 +6,12 @@
   --fc-gray: #666;
 }
 
+/* RESET */
+
+* {
+  box-sizing: border-box;
+}
+
 body, button, input, select, textarea {
   font-family: var(--ff-neo);
 }
@@ -13,6 +19,8 @@ body, button, input, select, textarea {
 h1,h2,h3,h4,h5,h6 {
   font-weight: var(--fw-normal);
 }
+
+/* GENERAL STYLES */
 
 .btn-std {
   border: 0;
@@ -28,7 +36,7 @@ h1,h2,h3,h4,h5,h6 {
 }
 
 .w-100 {
-  width: 100%:
+  width: 100%;
 }
 
 .space-between {
@@ -43,24 +51,60 @@ h1,h2,h3,h4,h5,h6 {
   align-items: center;
 }
 
+.italic {
+  font-style: italic;
+}
+
+/* RECORDING INTERFACE */
+
+.controls-container {
+  margin-top: 1rem;
+}
+
 .controls-container button:not(:first-child) {
   margin-left: 1rem;
 }
 
-.audio-transcript__container {
+/* AUDIO TRANSCRIPT */
+
+.audio-transcript__container, .audio-response__container {
   margin-top: 2rem;
 }
 
-.audio-transcript__heading {
+.audio-transcript__heading, .audio-response__heading {
   font-size: 1.25rem;
   margin: 0;
 }
 
-.audio-transcript {
+.audio-transcript, .audio-response {
   margin-top: .5rem;
   border: 1px solid var(--border-std);
   border-radius: .5rem;
   padding: 1rem;
   color: var(--fc-gray);
+  font-size: .875rem;
+  line-height: 1.5rem;
 }
 
+/* AUDIO RESPONSE */
+
+.audio-response__container {
+  display: none;
+}
+
+.audio-response__controls {
+  margin-top: 1rem;
+}
+
+
+/* JS INITIATED STYLES */
+
+/* LLM Responding */
+
+.js-responding .controls-container {
+  display: none;
+}
+
+.js-responding .audio-response__container {
+  display: block;
+}

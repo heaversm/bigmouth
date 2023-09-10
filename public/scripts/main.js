@@ -108,6 +108,58 @@ const writeAIResponse = (aiResponse) => {
   document.querySelector(".audio-response").innerText = aiResponse;
 };
 
+const handleServerAudioResponseFinished = (speechFile) => {
+  console.log(speechFile);
+  fetch("/api/deleteResponseFile", {
+    method: "post",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ speechFile }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      console.log(data);
+    })
+    .catch((err) => console.log(err));
+};
+
+const playAudioResponse = (speechFile) => {
+  const audioPlayer = document.querySelector(".audio-response__player");
+  audioPlayer.src = `/responseFiles/${speechFile}.mp3`;
+
+  audioPlayer.addEventListener("ended", () => {
+    console.log("ended");
+    handleServerAudioResponseFinished(speechFile);
+  });
+
+  audioPlayer.addEventListener("ended", () => {
+    console.log("Audio playback has finished.");
+    // You can perform any desired action here when the audio finishes playing.
+  });
+
+  audioPlayer.play();
+};
+
+const generateAIResponseFile = (aiResponse) => {
+  fetch("/api/generateAIResponseFile", {
+    method: "get",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      const { speechFile } = data;
+      try {
+        playAudioResponse(speechFile);
+      } catch (error) {
+        console.log("error playing audio response", error);
+      }
+    })
+    .catch((err) => console.log(err));
+};
+
 const handleServerSubmitTranscription = () => {
   fetch("/api/submitTranscription", {
     method: "get",
@@ -121,6 +173,7 @@ const handleServerSubmitTranscription = () => {
       try {
         const aiResponse = data.aiResponse;
         writeAIResponse(aiResponse);
+        generateAIResponseFile(aiResponse);
       } catch (error) {
         console.log(error);
       }

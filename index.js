@@ -4,6 +4,11 @@ const path = require("path");
 const process = require("process");
 const recorder = require("node-record-lpcm16");
 const speech = require("@google-cloud/speech");
+const textToSpeech = require("@google-cloud/text-to-speech");
+const fs = require("fs");
+const util = require("util");
+const { v4: uuidv4 } = require("uuid");
+
 const OpenAI = require("openai");
 require("dotenv").config();
 
@@ -15,36 +20,46 @@ const port = process.env.PORT || 3333;
 // const router = express.Router();
 const templates = path.join(process.cwd(), "templates");
 const publicDir = path.join(process.cwd(), "public");
+const responseFileDir = path.join(publicDir, "responseFiles");
 app.use(express.static(publicDir));
 
-const client = new speech.SpeechClient();
+/* RECORD */
+const speechClient = new speech.SpeechClient();
 const encoding = "LINEAR16"; //e.g. LINEAR16, FLAC, OGG_OPUS - https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig#AudioEncoding
 const sampleRateHertz = 16000; //HZ - you generally need to sample more than twice the highest frequency of any sound wave you wish to capture digitally
 const languageCode = "en-US"; //BCP-47 language code - https://cloud.google.com/speech-to-text/docs/languages
+let streamScript = ""; //will hold the transcript of the user's request
+let recording; //will hold the noderecord instance;
+let recognizeStream; //will hold the google speech to text stream
 
-let streamScript = "";
-let recording;
+/* RESPOND */
+const ttsClient = new textToSpeech.TextToSpeechClient();
+const writeFile = util.promisify(fs.writeFile);
 
-const request = {
-  config: {
-    encoding: encoding,
-    sampleRateHertz: sampleRateHertz,
-    languageCode: languageCode,
-  },
-  interimResults: false,
+let aiResponse = "";
+
+const initRecognizeStream = () => {
+  const userRequestConfig = {
+    config: {
+      encoding: encoding,
+      sampleRateHertz: sampleRateHertz,
+      languageCode: languageCode,
+    },
+    interimResults: false,
+  };
+  recognizeStream = speechClient
+    .streamingRecognize(userRequestConfig)
+    .on("error", console.error)
+    .on("data", (data) => {
+      const transcript =
+        data.results[0] && data.results[0].alternatives[0]
+          ? `${data.results[0].alternatives[0].transcript}\n`
+          : "\n\nReached transcription time limit, press Ctrl+C\n";
+      // process.stdout.write(transcript);
+      streamScript += transcript;
+    });
+  console.log("recognize stream initialized");
 };
-
-const recognizeStream = client
-  .streamingRecognize(request)
-  .on("error", console.error)
-  .on("data", (data) => {
-    const transcript =
-      data.results[0] && data.results[0].alternatives[0]
-        ? `${data.results[0].alternatives[0].transcript}\n`
-        : "\n\nReached transcription time limit, press Ctrl+C\n";
-    // process.stdout.write(transcript);
-    streamScript += transcript;
-  });
 
 const pauseRecordVoice = () => {
   recording.pause();
@@ -54,6 +69,7 @@ const stopRecordVoice = () => {
   recognizeStream.end();
   recognizeStream.destroy();
   recording.stop();
+  recognizeStream = null;
 };
 
 const recordVoice = () => {
@@ -95,12 +111,48 @@ app.get("/api/submitTranscription", async (req, res) => {
 
   // console.log(completion.choices);
   try {
-    const aiResponse = completion.choices[0].message.content;
+    aiResponse = completion.choices[0].message.content;
     res.status(200).json({ message: "success", aiResponse: aiResponse });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: `error, ${error}` });
   }
+});
+
+const getSpeechFilePath = (speechFileName) => {
+  return path.join(responseFileDir, `/${speechFileName}.mp3`);
+};
+
+app.post("/api/deleteResponseFile", (req, res) => {
+  const { speechFile } = req.body;
+  const speechFilePath = getSpeechFilePath(speechFile);
+  fs.unlink(speechFilePath, (err) => {
+    if (err) {
+      res.status(500).json({ message: `error deleting audio, ${err}` });
+    } else {
+      res.status(200).json({ message: "audio file deleted" });
+    }
+  });
+});
+
+app.get("/api/generateAIResponseFile", async (req, res) => {
+  const speechRequest = {
+    input: { text: aiResponse },
+    // Select the language and SSML voice gender (optional)
+    voice: { languageCode: "en-US", ssmlGender: "NEUTRAL" },
+    // select the type of audio encoding
+    audioConfig: { audioEncoding: "MP3" },
+  };
+
+  // Performs the text-to-speech request
+  const [speechResponse] = await ttsClient.synthesizeSpeech(speechRequest);
+  // Write the binary audio content to a local file
+
+  const speechFileName = uuidv4();
+  const speechFilePath = getSpeechFilePath(speechFileName);
+  console.log(speechFilePath);
+  await writeFile(speechFilePath, speechResponse.audioContent, "binary");
+  res.status(200).json({ message: "success", speechFile: speechFileName });
 });
 
 app.get("/api/pauseRecordVoice", (req, res) => {
@@ -117,6 +169,9 @@ app.get("/api/stopRecordVoice", (req, res) => {
 
 app.get("/api/recordVoice", (req, res) => {
   console.log("api voice");
+  if (!recognizeStream) {
+    initRecognizeStream();
+  }
   recordVoice();
   res.status(200).json({ message: "recording" });
 });

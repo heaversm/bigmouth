@@ -35,12 +35,8 @@ h1,h2,h3,h4,h5,h6 {
   display: flex;
 }
 
-.w-100 {
-  width: 100%;
-}
-
-.space-between {
-  justify-content: space-between;
+.flex-col {
+  flex-direction: column;
 }
 
 .justify-center {
@@ -50,6 +46,17 @@ h1,h2,h3,h4,h5,h6 {
 .align-center {
   align-items: center;
 }
+
+.space-between {
+  justify-content: space-between;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+
+
 
 .italic {
   font-style: italic;
@@ -93,6 +100,10 @@ h1,h2,h3,h4,h5,h6 {
 }
 
 .audio-response__controls {
+  margin-top: 1rem;
+}
+
+.audio-response__restart-btn {
   margin-top: 1rem;
 }
 

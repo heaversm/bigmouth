@@ -1,5 +1,6 @@
 let recordActive = false;
 let transcriptionInterval;
+let globalSpeechFile;
 
 const clearAudioTranscript = () => {
   document.querySelector(".audio-transcript").innerText = "";
@@ -108,20 +109,33 @@ const writeAIResponse = (aiResponse) => {
   document.querySelector(".audio-response").innerText = aiResponse;
 };
 
-const handleServerAudioResponseFinished = (speechFile) => {
-  console.log(speechFile);
-  fetch("/api/deleteResponseFile", {
-    method: "post",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ speechFile }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data);
+const handleDeleteSpeechFile = (speechFile) => {
+  return new Promise((resolve, reject) => {
+    fetch("/api/deleteResponseFile", {
+      method: "post",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ speechFile: speechFile }),
     })
-    .catch((err) => console.log(err));
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        globalSpeechFile = null;
+        resolve();
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      });
+  });
+};
+
+const handleServerAudioResponseFinished = async (speechFile) => {
+  if (globalSpeechFile) {
+    await handleDeleteSpeechFile(speechFile);
+    console.log("speech file deleted");
+  }
 };
 
 const playAudioResponse = (speechFile) => {
@@ -131,11 +145,6 @@ const playAudioResponse = (speechFile) => {
   audioPlayer.addEventListener("ended", () => {
     console.log("ended");
     handleServerAudioResponseFinished(speechFile);
-  });
-
-  audioPlayer.addEventListener("ended", () => {
-    console.log("Audio playback has finished.");
-    // You can perform any desired action here when the audio finishes playing.
   });
 
   audioPlayer.play();
@@ -151,6 +160,7 @@ const generateAIResponseFile = (aiResponse) => {
     .then((res) => res.json())
     .then((data) => {
       const { speechFile } = data;
+      globalSpeechFile = speechFile; //store in global...for now
       try {
         playAudioResponse(speechFile);
       } catch (error) {
@@ -210,6 +220,16 @@ const onAudioSubmitClick = () => {
   });
 };
 
+const onAskNewQuestionClick = async (e) => {
+  e.preventDefault();
+  //restart the q&a process
+  if (globalSpeechFile) {
+    await handleDeleteSpeechFile(globalSpeechFile);
+    console.log("deleted");
+    window.location = "/"; //TODO: no need to navigate to new page, just restart the interface
+  }
+};
+
 const addEventListeners = () => {
   document
     .querySelector(".audio-record-btn")
@@ -222,6 +242,10 @@ const addEventListeners = () => {
   document
     .querySelector(".audio-submit-btn")
     .addEventListener("click", onAudioSubmitClick);
+
+  document
+    .querySelector(".audio-response__restart-btn")
+    .addEventListener("click", onAskNewQuestionClick);
 };
 
 const init = () => {

@@ -1,5 +1,6 @@
 const express = require("express");
 const app = express();
+const bodyParser = require("body-parser");
 const path = require("path");
 const process = require("process");
 const recorder = require("node-record-lpcm16");
@@ -22,6 +23,9 @@ const templates = path.join(process.cwd(), "templates");
 const publicDir = path.join(process.cwd(), "public");
 const responseFileDir = path.join(publicDir, "responseFiles");
 app.use(express.static(publicDir));
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 /* RECORD */
 const speechClient = new speech.SpeechClient();
@@ -139,7 +143,12 @@ app.get("/api/generateAIResponseFile", async (req, res) => {
   const speechRequest = {
     input: { text: aiResponse },
     // Select the language and SSML voice gender (optional)
-    voice: { languageCode: "en-US", ssmlGender: "NEUTRAL" },
+    //https://cloud.google.com/text-to-speech/docs/ssml
+    voice: {
+      languageCode: "en-US",
+      name: "en-US-Studio-M",
+      ssmlGender: "MALE",
+    },
     // select the type of audio encoding
     audioConfig: { audioEncoding: "MP3" },
   };

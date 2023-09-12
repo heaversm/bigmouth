@@ -2,6 +2,21 @@ let isPlaying = false; //true when AI audio is playing
 let transcriptionInterval; //interval for receiving the current recorded transcription
 let globalSpeechFile; //the current speech file being played
 
+const BUTTON_STATUS = {
+  record: {
+    text: "BIGMOUTH",
+    iconURL: "/images/btn-record.png",
+  },
+  recording: {
+    text: "STOP",
+    iconURL: "/images/btn-stop.png",
+  },
+  wait: {
+    text: "WAIT...",
+    iconURL: "/images/btn-pause.png",
+  },
+};
+
 const clearAudioTranscript = () => {
   document.querySelector(".audio-transcript").innerText = "";
 };
@@ -14,7 +29,11 @@ const disableRecordButton = (disabled = true) => {
   document.querySelector(".audio-record__btn").disabled = disabled;
 };
 
-const setRecordIcon = (iconURL) => {};
+const setRecordStatus = (status) => {
+  const statusCFG = BUTTON_STATUS[status];
+  document.querySelector(".audio-record__label").innerText = statusCFG.text;
+  // document.querySelector(".audio-record__btn").src = `${statusCFG.iconURL}`;
+};
 
 const toggleTranscriptionPolling = (active = false) => {
   console.log("toggleTranscriptionPolling", active);
@@ -140,6 +159,7 @@ const handleAudioResponseFinished = async (speechFile) => {
       await handleDeleteSpeechFile(speechFile);
       console.log("speech file deleted");
       disableRecordButton(false);
+      setRecordStatus("record");
       // window.location = "/";
     }
   });
@@ -204,6 +224,7 @@ const toggleState = (state, active = true) => {
 const onRecordDown = async () => {
   handleServerRecord().then(async () => {
     //manage the UI
+    setRecordStatus("recording");
     toggleState("recording", true);
     //start looking for the latest transcript results
     toggleTranscriptionPolling(true);
@@ -215,6 +236,7 @@ const onRecordUp = () => {
   toggleTranscriptionPolling(false);
   //manage the UI
   toggleState("responding", true);
+  setRecordStatus("wait");
   disableRecordButton(true);
   //tell the server to stop recording
   handleServerStopRecord().then(async () => {

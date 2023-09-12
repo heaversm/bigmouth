@@ -29,12 +29,29 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 /* RECORD */
 const speechClient = new speech.SpeechClient();
-const encoding = "LINEAR16"; //e.g. LINEAR16, FLAC, OGG_OPUS - https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig#AudioEncoding
-const sampleRateHertz = 16000; //HZ - you generally need to sample more than twice the highest frequency of any sound wave you wish to capture digitally
-const languageCode = "en-US"; //BCP-47 language code - https://cloud.google.com/speech-to-text/docs/languages
+
 let streamScript = ""; //will hold the transcript of the user's request
-let recording; //will hold the noderecord instance;
 let recognizeStream; //will hold the google speech to text stream
+let recording; //will hold the noderecord instance;
+
+SAMPLE_RATE_HERTZ = 16000;
+USE_INTERIM_RESULTS = true; //when true, get a steady stream of audio from the recording. In this case, you'll want the transcript to be set each time, vs. be added to.
+
+const RECOGNIZE_CONFIG = {
+  encoding: "LINEAR16", //e.g. LINEAR16, FLAC, OGG_OPUS - https://cloud.google.com/speech-to-text/docs/reference/rest/v1/RecognitionConfig#AudioEncoding
+  sampleRateHertz: SAMPLE_RATE_HERTZ, //HZ - you generally need to sample more than twice the highest frequency of any sound wave you wish to capture digitally
+  languageCode: "en-US", //BCP-47 language code - https://cloud.google.com/speech-to-text/docs/languages
+  streamingLimit: 290000, //max number of milliseconds to stream audio
+};
+
+const RECORD_CONFIG = {
+  sampleRateHertz: SAMPLE_RATE_HERTZ,
+  threshold: 0,
+  // Other options, see https://www.npmjs.com/package/node-record-lpcm16#options
+  verbose: false,
+  recordProgram: "rec", // Try also "arecord" or "sox"
+  silence: "10.0", //how long to wait in silence before ending
+};
 
 /* RESPOND */
 const ttsClient = new textToSpeech.TextToSpeechClient();
@@ -42,50 +59,54 @@ const writeFile = util.promisify(fs.writeFile);
 
 let aiResponse = "";
 
+const onRecognizeData = (data) => {
+  const transcript =
+    data.results[0] && data.results[0].alternatives[0]
+      ? `${data.results[0].alternatives[0].transcript}\n`
+      : "\n\nReached transcription time limit, press Ctrl+C\n";
+  // process.stdout.write(transcript);
+  if (USE_INTERIM_RESULTS) {
+    streamScript = transcript;
+  } else {
+    streamScript += transcript;
+  }
+  console.log("streamScript", streamScript);
+};
+
 const initRecognizeStream = () => {
   const userRequestConfig = {
-    config: {
-      encoding: encoding,
-      sampleRateHertz: sampleRateHertz,
-      languageCode: languageCode,
-    },
-    interimResults: false,
+    config: RECOGNIZE_CONFIG,
+    interimResults: USE_INTERIM_RESULTS,
   };
   recognizeStream = speechClient
     .streamingRecognize(userRequestConfig)
     .on("error", console.error)
-    .on("data", (data) => {
-      const transcript =
-        data.results[0] && data.results[0].alternatives[0]
-          ? `${data.results[0].alternatives[0].transcript}\n`
-          : "\n\nReached transcription time limit, press Ctrl+C\n";
-      // process.stdout.write(transcript);
-      streamScript += transcript;
-    });
+    .on("data", onRecognizeData);
   console.log("recognize stream initialized");
 };
 
-const pauseRecordVoice = () => {
-  recording.pause();
+const stopRecordVoice = () => {
+  console.log("api stop");
+  recognizeStream.pause();
 };
 
-const stopRecordVoice = () => {
-  recognizeStream.end();
-  recognizeStream.destroy();
+const clearRecognizeStream = () => {
+  if (recognizeStream) {
+    recognizeStream.end();
+    recognizeStream.removeListener("data", onRecognizeData);
+    // recognizeStream.destroy();
+    recognizeStream = null;
+  }
+};
+
+const clearRecording = () => {
   recording.stop();
-  recognizeStream = null;
+  recording = null;
 };
 
 const recordVoice = () => {
   if (!recording) {
-    recording = recorder.record({
-      sampleRateHertz: sampleRateHertz,
-      threshold: 0,
-      // Other options, see https://www.npmjs.com/package/node-record-lpcm16#options
-      verbose: false,
-      recordProgram: "rec", // Try also "arecord" or "sox"
-      silence: "10.0",
-    });
+    recording = recorder.record(RECORD_CONFIG);
 
     // Start recording and send the microphone input to the Speech API.
     // Ensure SoX is installed, see https://www.npmjs.com/package/node-record-lpcm16#dependencies
@@ -102,14 +123,21 @@ app.get("/api/getTranscription", (req, res) => {
 });
 
 app.get("/api/clearTranscription", (req, res) => {
-  console.log("api clear");
   streamScript = "";
+  clearRecognizeStream();
+  clearRecording();
   res.status(200).json({ message: "transcription cleared" });
 });
 
 app.get("/api/submitTranscription", async (req, res) => {
   const completion = await openai.chat.completions.create({
-    messages: [{ role: "user", content: streamScript }],
+    messages: [
+      {
+        role: "user",
+        //content: `respond to the following query, and be as brief as possible in your response: ${streamScript}`,
+        content: streamScript,
+      },
+    ],
     model: "gpt-3.5-turbo",
   });
 
@@ -140,6 +168,7 @@ app.post("/api/deleteResponseFile", (req, res) => {
 });
 
 app.get("/api/generateAIResponseFile", async (req, res) => {
+  console.log("api generate");
   const speechRequest = {
     input: { text: aiResponse },
     // Select the language and SSML voice gender (optional)
@@ -159,15 +188,9 @@ app.get("/api/generateAIResponseFile", async (req, res) => {
 
   const speechFileName = uuidv4();
   const speechFilePath = getSpeechFilePath(speechFileName);
-  console.log(speechFilePath);
+  console.log("speechFilePath", speechFilePath);
   await writeFile(speechFilePath, speechResponse.audioContent, "binary");
   res.status(200).json({ message: "success", speechFile: speechFileName });
-});
-
-app.get("/api/pauseRecordVoice", (req, res) => {
-  console.log("api pause");
-  pauseRecordVoice();
-  res.status(200).json({ message: "recording paused" });
 });
 
 app.get("/api/stopRecordVoice", (req, res) => {
@@ -179,6 +202,7 @@ app.get("/api/stopRecordVoice", (req, res) => {
 app.get("/api/recordVoice", (req, res) => {
   console.log("api voice");
   if (!recognizeStream) {
+    console.log("init recognize stream");
     initRecognizeStream();
   }
   recordVoice();

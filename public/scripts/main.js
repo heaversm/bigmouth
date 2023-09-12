@@ -1,12 +1,23 @@
-let recordActive = false;
-let transcriptionInterval;
-let globalSpeechFile;
+let isPlaying = false; //true when AI audio is playing
+let transcriptionInterval; //interval for receiving the current recorded transcription
+let globalSpeechFile; //the current speech file being played
 
 const clearAudioTranscript = () => {
   document.querySelector(".audio-transcript").innerText = "";
 };
 
+const clearAudioResponse = () => {
+  document.querySelector(".audio-response").innerText = "";
+};
+
+const disableRecordButton = (disabled = true) => {
+  document.querySelector(".audio-record__btn").disabled = disabled;
+};
+
+const setRecordIcon = (iconURL) => {};
+
 const toggleTranscriptionPolling = (active = false) => {
+  console.log("toggleTranscriptionPolling", active);
   if (active) {
     transcriptionInterval = setInterval(() => {
       fetch("/api/getTranscription", {
@@ -17,7 +28,10 @@ const toggleTranscriptionPolling = (active = false) => {
       })
         .then((res) => res.json())
         .then((data) => {
-          document.querySelector(".audio-transcript").innerText = data.script;
+          if (data.script) {
+            console.log(data.script);
+            document.querySelector(".audio-transcript").innerText = data.script;
+          }
         })
         .catch((err) => console.log(err));
     }, 1000);
@@ -28,35 +42,6 @@ const toggleTranscriptionPolling = (active = false) => {
 
 const clearJSClasses = () => {
   document.body.className = "";
-};
-
-const toggleRecordingUI = (active = false) => {
-  clearJSClasses();
-  // document.body.classList.toggle("js-recording", active);
-  if (active) {
-    document.querySelector(".audio-record-btn").innerText = "Pause";
-  } else {
-    document.querySelector(".audio-record-btn").innerText = "Record";
-  }
-};
-
-const toggleResponseUI = (active = false) => {
-  clearJSClasses();
-  document.body.classList.toggle("js-responding", active);
-};
-
-const handleServerPauseRecord = () => {
-  fetch("/api/pauseRecordVoice", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data);
-    })
-    .catch((err) => console.log(err));
 };
 
 const handleServerStopRecord = async () => {
@@ -77,32 +62,43 @@ const handleServerStopRecord = async () => {
 };
 
 const handleServerRecord = () => {
-  fetch("/api/recordVoice", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      "recording started";
-      console.log(data);
+  return new Promise((resolve, reject) => {
+    fetch("/api/recordVoice", {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
-    .catch((err) => console.log(err));
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        resolve();
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      });
+  });
 };
 
 const handleServerClearTranscription = () => {
-  fetch("/api/clearTranscription", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data);
+  return new Promise((resolve, reject) => {
+    fetch("/api/clearTranscription", {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
-    .catch((err) => console.log(err));
+      .then((res) => res.json())
+      .then((data) => {
+        console.log(data);
+        resolve();
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      });
+  });
 };
 
 const writeAIResponse = (aiResponse) => {
@@ -131,121 +127,124 @@ const handleDeleteSpeechFile = (speechFile) => {
   });
 };
 
-const handleServerAudioResponseFinished = async (speechFile) => {
-  if (globalSpeechFile) {
-    await handleDeleteSpeechFile(speechFile);
-    console.log("speech file deleted");
-  }
+const handleAudioResponseFinished = async (speechFile) => {
+  //clear the transcript from the textbox
+  clearAudioTranscript();
+  //clear audio response from the textbox
+  clearAudioResponse();
+  //handle the class-based styles
+  toggleState("playing", false);
+  //clear the transcript from the server
+  handleServerClearTranscription().then(async () => {
+    if (globalSpeechFile) {
+      await handleDeleteSpeechFile(speechFile);
+      console.log("speech file deleted");
+      disableRecordButton(false);
+      // window.location = "/";
+    }
+  });
 };
 
 const playAudioResponse = (speechFile) => {
+  toggleState("playing", true);
   const audioPlayer = document.querySelector(".audio-response__player");
   audioPlayer.src = `/responseFiles/${speechFile}.mp3`;
 
   audioPlayer.addEventListener("ended", () => {
-    console.log("ended");
-    handleServerAudioResponseFinished(speechFile);
+    console.log("audio playback ended");
+    handleAudioResponseFinished(speechFile);
   });
 
   audioPlayer.play();
 };
 
 const generateAIResponseFile = (aiResponse) => {
-  fetch("/api/generateAIResponseFile", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      const { speechFile } = data;
-      globalSpeechFile = speechFile; //store in global...for now
-      try {
-        playAudioResponse(speechFile);
-      } catch (error) {
-        console.log("error playing audio response", error);
-      }
+  return new Promise((resolve, reject) => {
+    fetch("/api/generateAIResponseFile", {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
-    .catch((err) => console.log(err));
-};
-
-const handleServerSubmitTranscription = () => {
-  fetch("/api/submitTranscription", {
-    method: "get",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data);
-      try {
-        const aiResponse = data.aiResponse;
-        writeAIResponse(aiResponse);
-        generateAIResponseFile(aiResponse);
-      } catch (error) {
-        console.log(error);
-      }
-    })
-    .catch((err) => console.log(err));
-};
-
-const onRecordClick = () => {
-  if (recordActive) {
-    //if recording, stop
-    recordActive = false;
-    handleServerPauseRecord();
-    toggleTranscriptionPolling(false);
-    toggleRecordingUI(false);
-  } else {
-    //startRecording
-    recordActive = true;
-    handleServerRecord();
-    toggleRecordingUI(true);
-    toggleTranscriptionPolling(true);
-  }
-};
-
-const onClearClick = () => {
-  clearAudioTranscript();
-  handleServerClearTranscription();
-};
-
-const onAudioSubmitClick = () => {
-  toggleRecordingUI(false);
-  toggleResponseUI(true);
-  handleServerStopRecord().then(() => {
-    handleServerSubmitTranscription();
+      .then((res) => res.json())
+      .then((data) => {
+        resolve(data.speechFile);
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      });
   });
 };
 
-const onAskNewQuestionClick = async (e) => {
-  e.preventDefault();
-  //restart the q&a process
-  if (globalSpeechFile) {
-    await handleDeleteSpeechFile(globalSpeechFile);
-    console.log("deleted");
-    window.location = "/"; //TODO: no need to navigate to new page, just restart the interface
-  }
+const handleServerSubmitTranscription = () => {
+  return new Promise((resolve, reject) => {
+    fetch("/api/submitTranscription", {
+      method: "get",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        resolve(data.aiResponse);
+      })
+      .catch((err) => {
+        console.log(err);
+        reject(err);
+      });
+  });
+};
+
+const toggleState = (state, active = true) => {
+  clearJSClasses();
+  document.body.classList.toggle(`js-${state}`, active);
+};
+
+const onRecordDown = async () => {
+  handleServerRecord().then(async () => {
+    //manage the UI
+    toggleState("recording", true);
+    //start looking for the latest transcript results
+    toggleTranscriptionPolling(true);
+  });
+};
+
+const onRecordUp = () => {
+  //stop looking for the latest transcript results
+  toggleTranscriptionPolling(false);
+  //manage the UI
+  toggleState("responding", true);
+  disableRecordButton(true);
+  //tell the server to stop recording
+  handleServerStopRecord().then(async () => {
+    console.log("stopped recording. Submitting transcription");
+    handleServerSubmitTranscription().then(async (aiResponse) => {
+      //write response on screen
+      writeAIResponse(aiResponse);
+      generateAIResponseFile(aiResponse).then(async (speechFile) => {
+        globalSpeechFile = speechFile; //store in global...for now
+        try {
+          playAudioResponse(speechFile);
+          //when play is done, handleAudioResponseFinished will be called
+        } catch (error) {
+          console.log("error playing audio response", error);
+        }
+      });
+    });
+  });
 };
 
 const addEventListeners = () => {
+  //start recording
   document
-    .querySelector(".audio-record-btn")
-    .addEventListener("click", onRecordClick);
+    .querySelector(".audio-record__btn")
+    .addEventListener("mousedown", onRecordDown);
 
+  //stop recording and submit
   document
-    .querySelector(".audio-clear-btn")
-    .addEventListener("click", onClearClick);
-
-  document
-    .querySelector(".audio-submit-btn")
-    .addEventListener("click", onAudioSubmitClick);
-
-  document
-    .querySelector(".audio-response__restart-btn")
-    .addEventListener("click", onAskNewQuestionClick);
+    .querySelector(".audio-record__btn")
+    .addEventListener("mouseup", onRecordUp);
 };
 
 const init = () => {

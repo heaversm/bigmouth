@@ -3,30 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio LLM</title>
+  <title>BigMouth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@300&display=swap" rel="stylesheet"> 
   <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
-  <div class="title-container flex justify-center w-100">
-    <h1 class="">Audio LLM</h1>
-  </div>
-  
-  <div class="audio-transcript__container w-100">
-    <h2 class="audio-transcript__heading">Request</h2>
-    <textarea class="audio-transcript w-100"></textarea>
-  </div>
-  <div class="controls-container flex justify-center align-center w-100">
-    <button class="audio-record-btn btn-std">Record</button>
-    <button class="audio-clear-btn btn-std">Clear</button>
-    <button class="audio-submit-btn btn-std">Submit</button>
-  </div>
-  <div class="audio-response__container w-100">
-    <h2 class="audio-response__heading">Response</h2>
-    <div class="audio-response w-100 italic"></div>
+  <div class="site-container">
+    <div class="title-container flex justify-center w-100">
+      <h1 class="">BigMouth</h1>
+    </div>
+    <div class="controls-container flex justify-center align-center align-center flex-col w-100">
+      <input name="record" type="image" class="audio-record__btn" alt="record audio" src="/images/btn-record-hand.png"></input>
+      <label class="audio-record__label" for="record">▵ RECORD ▵</label>
+    </div>
+    <div class="audio-transcript__container w-100">
+      <h2 class="audio-transcript__heading">You were like...</h2>
+      <div class="audio-transcript w-100"></div>
+    </div>
+    
+    <div class="audio-response__container w-100">
+      <h2 class="audio-response__heading">...and he's like...</h2>
+      <div class="audio-response w-100 italic"></div>
+    </div>
     <div class="audio-response__controls align-center flex flex-col">
       <audio controls src="" class="audio-response__player"></audio>
-      <br/>
-      <button class="btn-std audio-response__restart-btn">Ask a New Question</button>
     </div>
   </div>
   <script src="scripts/main.js"></script>

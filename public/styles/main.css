@@ -1,9 +1,12 @@
 :root {
-  --border-std: #eee;
+  --border-std: #666;
   --bg-btn: #008afc;
   --ff-neo: Inter, Roboto, 'Helvetica Neue', 'Arial Nova', 'Nimbus Sans', Arial, sans-serif;
+  --ff-lucky: 'Luckiest Guy', sans-serif;
   --fw-normal: 400;
   --fc-gray: #666;
+  --bg-site: #fff4bb;
+  --bg-white: #fff;
 }
 
 /* RESET */
@@ -13,11 +16,25 @@
 }
 
 body, button, input, select, textarea {
-  font-family: var(--ff-neo);
+  /* font-family: var(--ff-neo); */
+  font-family: var(--ff-lucky);
+}
+
+body {
+  background-color: var(--bg-site);
+}
+
+input, select, textarea {
+  background-color: transparent;
 }
 
 h1,h2,h3,h4,h5,h6 {
   font-weight: var(--fw-normal);
+}
+
+img {
+  width: 100%;
+  height: auto;
 }
 
 /* GENERAL STYLES */
@@ -62,6 +79,12 @@ h1,h2,h3,h4,h5,h6 {
   font-style: italic;
 }
 
+.site-container {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 75%;
+}
+
 /* RECORDING INTERFACE */
 
 .controls-container {
@@ -72,30 +95,54 @@ h1,h2,h3,h4,h5,h6 {
   margin-left: 1rem;
 }
 
+.audio-record__btn {
+  max-width: 150px;
+  padding: 0;
+  background-color: transparent;
+}
+
+.audio-record__label {
+  margin-top: 1rem;
+  font-weight: 700;
+  
+}
+
 /* AUDIO TRANSCRIPT */
 
 .audio-transcript__container, .audio-response__container {
   margin-top: 2rem;
 }
 
+.audio-transcript__container { /* hide until we have recorded audio */
+  display: none;
+}
+
 .audio-transcript__heading, .audio-response__heading {
   font-size: 1.25rem;
   margin: 0;
+  text-align: center;
+  font-style: italic;
 }
 
 .audio-transcript, .audio-response {
-  margin-top: .5rem;
+  margin-top: 1rem;
   border: 1px solid var(--border-std);
   border-radius: .5rem;
   padding: 1rem;
   color: var(--fc-gray);
   font-size: .875rem;
   line-height: 1.5rem;
+  text-align: center;
 }
+
 
 /* AUDIO RESPONSE */
 
 .audio-response__container {
+  display: none;
+}
+
+.audio-response__controls {
   display: none;
 }
 
@@ -110,12 +157,17 @@ h1,h2,h3,h4,h5,h6 {
 
 /* JS INITIATED STYLES */
 
-/* LLM Responding */
 
-.js-responding .controls-container {
-  display: none;
-}
+/* AUDIO RECORDING */
 
-.js-responding .audio-response__container {
+body[class^='js-'] .audio-transcript__container {
   display: block;
 }
+
+/* AUDIO RESPONDING */
+body.js-responding .audio-response__container, body.js-playing .audio-response__container {
+  display: block;
+}
+
+
+
